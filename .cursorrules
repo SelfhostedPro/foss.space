@@ -1,0 +1,17 @@
+# shadcn instructions
+
+Use the canary version of Shadcn to install new components, like this command to add a button component:
+
+```bash
+bunx shadcn@canary add button
+```
+Make sure to do it in the relevant app in the apps directory.
+
+# tanstack start
+
+This is a monorepo with tanstack start, tanstack query, tanstack router, and shadcn.
+Create new apps in apps/
+Create packages in packages/
+
+# Package Manager
+use bun
