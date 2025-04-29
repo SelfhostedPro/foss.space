@@ -5,10 +5,16 @@ import { ThreadList } from "@/components/threads/ThreadList";
 
 export const Route = createFileRoute("/threads/")({
   component: ThreadsIndexPage,
+  loader: async ({ context }) => {
+    const threads = await context.queryClient.ensureQueryData(
+      threadsQueryOptions()
+    );
+    return { threads };
+  },
 });
 
 function ThreadsIndexPage() {
-  const { data: threads, isLoading, error } = useQuery(threadsQueryOptions());
+  const { threads } = Route.useLoaderData();
 
   return (
     <div className="container py-6">
@@ -21,8 +27,6 @@ function ThreadsIndexPage() {
 
       <ThreadList
         threads={threads}
-        isLoading={isLoading}
-        error={error instanceof Error ? error : null}
         showCreateButton={true}
         createPath="/threads/new"
       />

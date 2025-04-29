@@ -1,10 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { user } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { z } from "zod";
-import { db } from "@/lib/db/db.server";
+import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import type { InferUser } from "better-auth";
+import { auth } from "@/lib/auth";
+
+export type SessionUser = (typeof auth.$Infer)["Session"]["user"];
 
 // Query Keys
 export const userKeys = {
@@ -17,15 +21,15 @@ export const userKeys = {
 export const fetchUsers = createServerFn({ method: "GET" }).handler(
   async () => {
     console.info("Fetching all users...");
-    return await db().query.user.findMany();
+    return await db.query.users.findMany();
   }
 );
 
 export const fetchUserById = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data }) => {
-    const user = await db().query.user.findFirst({
-      where: (user, { eq }) => eq(user.id, data),
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, data),
       columns: {
         email: false,
         banned: false,
@@ -41,16 +45,16 @@ export const fetchUserById = createServerFn({ method: "GET" })
     return user;
   });
 
-const userUpdateSchema = createUpdateSchema(user).required({ id: true });
-const userSelectSchema = createSelectSchema(user);
+const userUpdateSchema = createUpdateSchema(users).required({ id: true });
+const userSelectSchema = createSelectSchema(users);
 export const updateUser = createServerFn({ method: "POST" })
   .validator(userUpdateSchema)
   .handler(async ({ data: { id, ...data } }) => {
     console.info(`Updating user with id ${id}...`);
 
     // Check if user exists
-    const existingUser = await db().query.user.findFirst({
-      where: (user, { eq }) => eq(user.id, id),
+    const existingUser = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, id),
     });
 
     if (!existingUser) {
@@ -59,13 +63,13 @@ export const updateUser = createServerFn({ method: "POST" })
 
     // Update user
     const updatedAt = new Date();
-    const result = await db()
-      .update(user)
+    const result = await db
+      .update(users)
       .set({
         ...data,
         updatedAt,
       })
-      .where(eq(user.id, id))
+      .where(eq(users.id, id))
       .returning();
 
     return result[0];
@@ -74,8 +78,8 @@ export const updateUser = createServerFn({ method: "POST" })
 export const fetchUserByEmail = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data }) => {
-    const user = await db().query.user.findFirst({
-      where: (user, { eq }) => eq(user.email, data),
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, data),
     });
     if (!user) {
       throw new Error(`User with email ${data} not found`);

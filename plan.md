@@ -3,6 +3,8 @@
 ## Project Overview
 We're building a forum website using TanStack Start, TanStack Router, TanStack Query, Shadcn components, and Drizzle ORM with LibSQL (Turso) as the database. The forum will focus on FOSS Development with a hybrid UI that combines elements of Twitter and Discourse, allowing users to follow people, have a personalized feed, maintain profile content, while also organizing discussions in a traditional forum structure.
 
+The main app lives in apps/web.
+
 ## Core Requirements
 
 ### Core Platform

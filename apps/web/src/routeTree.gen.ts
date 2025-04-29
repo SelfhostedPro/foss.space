@@ -16,7 +16,7 @@ import { Route as ThreadsIndexImport } from './routes/threads/index'
 import { Route as AppIndexImport } from './routes/_app/index'
 import { Route as ThreadsNewImport } from './routes/threads/new'
 import { Route as ThreadsThreadSlugImport } from './routes/threads/$threadSlug'
-import { Route as TagsTagSlugImport } from './routes/tags/$tagSlug'
+import { Route as TagsTagNameImport } from './routes/tags/$tagName'
 import { Route as CategoriesCategorySlugImport } from './routes/categories/$categorySlug'
 import { Route as AppTagsImport } from './routes/_app/tags'
 import { Route as AppProfileImport } from './routes/_app/profile'
@@ -54,9 +54,9 @@ const ThreadsThreadSlugRoute = ThreadsThreadSlugImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const TagsTagSlugRoute = TagsTagSlugImport.update({
-  id: '/tags/$tagSlug',
-  path: '/tags/$tagSlug',
+const TagsTagNameRoute = TagsTagNameImport.update({
+  id: '/tags/$tagName',
+  path: '/tags/$tagName',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -136,11 +136,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesCategorySlugImport
       parentRoute: typeof rootRoute
     }
-    '/tags/$tagSlug': {
-      id: '/tags/$tagSlug'
-      path: '/tags/$tagSlug'
-      fullPath: '/tags/$tagSlug'
-      preLoaderRoute: typeof TagsTagSlugImport
+    '/tags/$tagName': {
+      id: '/tags/$tagName'
+      path: '/tags/$tagName'
+      fullPath: '/tags/$tagName'
+      preLoaderRoute: typeof TagsTagNameImport
       parentRoute: typeof rootRoute
     }
     '/threads/$threadSlug': {
@@ -203,7 +203,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/tags': typeof AppTagsRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
-  '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/tags/$tagName': typeof TagsTagNameRoute
   '/threads/$threadSlug': typeof ThreadsThreadSlugRoute
   '/threads/new': typeof ThreadsNewRoute
   '/': typeof AppIndexRoute
@@ -216,7 +216,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/tags': typeof AppTagsRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
-  '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/tags/$tagName': typeof TagsTagNameRoute
   '/threads/$threadSlug': typeof ThreadsThreadSlugRoute
   '/threads/new': typeof ThreadsNewRoute
   '/': typeof AppIndexRoute
@@ -231,7 +231,7 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/tags': typeof AppTagsRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
-  '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/tags/$tagName': typeof TagsTagNameRoute
   '/threads/$threadSlug': typeof ThreadsThreadSlugRoute
   '/threads/new': typeof ThreadsNewRoute
   '/_app/': typeof AppIndexRoute
@@ -247,7 +247,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/tags'
     | '/categories/$categorySlug'
-    | '/tags/$tagSlug'
+    | '/tags/$tagName'
     | '/threads/$threadSlug'
     | '/threads/new'
     | '/'
@@ -259,7 +259,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/tags'
     | '/categories/$categorySlug'
-    | '/tags/$tagSlug'
+    | '/tags/$tagName'
     | '/threads/$threadSlug'
     | '/threads/new'
     | '/'
@@ -272,7 +272,7 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/tags'
     | '/categories/$categorySlug'
-    | '/tags/$tagSlug'
+    | '/tags/$tagName'
     | '/threads/$threadSlug'
     | '/threads/new'
     | '/_app/'
@@ -283,7 +283,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   CategoriesCategorySlugRoute: typeof CategoriesCategorySlugRoute
-  TagsTagSlugRoute: typeof TagsTagSlugRoute
+  TagsTagNameRoute: typeof TagsTagNameRoute
   ThreadsThreadSlugRoute: typeof ThreadsThreadSlugRoute
   ThreadsNewRoute: typeof ThreadsNewRoute
   ThreadsIndexRoute: typeof ThreadsIndexRoute
@@ -292,7 +292,7 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   CategoriesCategorySlugRoute: CategoriesCategorySlugRoute,
-  TagsTagSlugRoute: TagsTagSlugRoute,
+  TagsTagNameRoute: TagsTagNameRoute,
   ThreadsThreadSlugRoute: ThreadsThreadSlugRoute,
   ThreadsNewRoute: ThreadsNewRoute,
   ThreadsIndexRoute: ThreadsIndexRoute,
@@ -310,7 +310,7 @@ export const routeTree = rootRoute
       "children": [
         "/_app",
         "/categories/$categorySlug",
-        "/tags/$tagSlug",
+        "/tags/$tagName",
         "/threads/$threadSlug",
         "/threads/new",
         "/threads/"
@@ -345,8 +345,8 @@ export const routeTree = rootRoute
     "/categories/$categorySlug": {
       "filePath": "categories/$categorySlug.tsx"
     },
-    "/tags/$tagSlug": {
-      "filePath": "tags/$tagSlug.tsx"
+    "/tags/$tagName": {
+      "filePath": "tags/$tagName.tsx"
     },
     "/threads/$threadSlug": {
       "filePath": "threads/$threadSlug.tsx"

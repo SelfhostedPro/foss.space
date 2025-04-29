@@ -1,16 +1,17 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { tags, threadTags } from "@/lib/db/schema";
 import { z } from "zod";
 import { count, eq } from "drizzle-orm";
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
-import { db } from "../db/db.server";
+import { db } from "@/lib/db";
+import { tags, threads } from "@/lib/db/schema";
 // Query Keys
 export const tagKeys = {
   all: ["tags"] as const,
   byId: (id: string) => ["tags", id] as const,
-  bySlug: (slug: string) => ["tags", "slug", slug] as const,
+  byName: (name: string) => ["tags", "name", name] as const,
   withStats: ["tags", "with-stats"] as const,
+  byThreadId: (threadId: string) => ["tags", "thread", threadId] as const,
 };
 
 // Create Zod schemas from Drizzle schema
@@ -35,27 +36,25 @@ export type TagWithStats = Tag & {
 
 // Server Functions for Tags
 export const fetchTags = createServerFn({ method: "GET" }).handler(async () => {
-
   console.info("Fetching all tags...");
-  return await db().query.tags.findMany();
+  return await db.query.tags.findMany();
 });
 
 export const fetchTagsWithStats = createServerFn({ method: "GET" }).handler(
   async () => {
-
     console.info("Fetching tags with stats...");
 
     // Get all tags
-    const tags = await db().query.tags.findMany();
+    const tags = await db.query.tags.findMany();
 
     // For each tag, count threads using this tag
     const tagsWithStats = await Promise.all(
       tags.map(async (tag) => {
         // Count threads with this tag
-        const threadCount = await db()
+        const threadCount = await db
           .select({ count: count() })
-          .from(threadTags)
-          .where(eq(threadTags.tagId, tag.id))
+          .from(threads)
+          .where(eq(threads.tagId, tag.id))
           .then((result) => result[0]?.count || 0);
 
         return {
@@ -72,9 +71,8 @@ export const fetchTagsWithStats = createServerFn({ method: "GET" }).handler(
 export const fetchTagById = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data }) => {
-
     console.info(`Fetching tag with id ${data}...`);
-    const tag = await db().query.tags.findFirst({
+    const tag = await db.query.tags.findFirst({
       where: (tags, { eq }) => eq(tags.id, data),
     });
 
@@ -85,20 +83,39 @@ export const fetchTagById = createServerFn({ method: "GET" })
     return tag;
   });
 
-export const fetchTagBySlug = createServerFn({ method: "GET" })
+export const fetchTagByName = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data }) => {
-
     console.info(`Fetching tag with slug ${data}...`);
-    const tag = await db().query.tags.findFirst({
-      where: (tags, { eq }) => eq(tags.slug, data),
+    const tag = await db.query.tags.findFirst({
+      where: (tags, { eq }) => eq(tags.name, data),
     });
 
     if (!tag) {
-      throw new Error(`Tag with slug ${data} not found`);
+      throw new Error(`Tag with name ${data} not found`);
     }
 
     return tag;
+  });
+
+export const fetchTagsByThreadId = createServerFn({ method: "GET" })
+  .validator(z.string())
+  .handler(async ({ data: threadId }): Promise<Tag[]> => {
+    console.info(`Fetching tags for thread ${threadId}...`);
+
+    // Get all tags associated with this thread
+    const result = await db.query.threads.findMany({
+      where: (threads, { eq }) => eq(threads.id, threadId),
+      with: {
+        tags: {
+          with: {
+            tag: true,
+          },
+        },
+      },
+    });
+
+    return result.flatMap((item) => item.tags.map((tag) => tag.tag));
   });
 
 export const createTag = createServerFn({ method: "POST" })
@@ -106,12 +123,11 @@ export const createTag = createServerFn({ method: "POST" })
     tagInsertSchema.omit({ id: true, createdAt: true, updatedAt: true })
   )
   .handler(async ({ data }) => {
-
     console.info("Creating new tag...");
     const now = new Date();
     const id = crypto.randomUUID();
 
-    const result = await db() 
+    const result = await db
       .insert(tags)
       .values({
         id,
@@ -144,9 +160,15 @@ export const tagByIdQueryOptions = (id: string) =>
     enabled: !!id,
   });
 
-export const tagBySlugQueryOptions = (slug: string) =>
+export const tagsByThreadIdQueryOptions = (threadId: string) =>
   queryOptions({
-    queryKey: tagKeys.bySlug(slug),
-    queryFn: () => fetchTagBySlug({ data: slug }),
-    enabled: !!slug,
+    queryKey: tagKeys.byThreadId(threadId),
+    queryFn: () => fetchTagsByThreadId({ data: threadId }),
+    enabled: !!threadId,
+  });
+export const tagByNameQueryOptions = (name: string) =>
+  queryOptions({
+    queryKey: tagKeys.byName(name),
+    queryFn: () => fetchTagByName({ data: name }),
+    enabled: !!name,
   });

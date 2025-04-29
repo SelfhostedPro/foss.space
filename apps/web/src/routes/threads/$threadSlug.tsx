@@ -5,6 +5,7 @@ import {
 import {
   threadBySlugQueryOptions,
   postsByThreadIdQueryOptions,
+  tagsByThreadIdQueryOptions,
 } from "@/lib/queries";
 import { format } from "date-fns";
 import { MessageSquare, Eye, Tag } from "lucide-react";
@@ -27,7 +28,10 @@ export const Route = createFileRoute("/threads/$threadSlug")({
     const posts = await context.queryClient.ensureQueryData(
       postsByThreadIdQueryOptions(thread?.id || "")
     );
-    return { thread, posts };
+    const tags = await context.queryClient.ensureQueryData(
+      tagsByThreadIdQueryOptions(thread?.id || "")
+    );
+    return { thread, posts, tags };
   },
 });
 
@@ -63,7 +67,7 @@ function DetailSkeleton() {
 function ThreadDetailPage() {
   const { threadSlug } = Route.useParams();
 
-  const { thread, posts } = Route.useLoaderData();
+  const { thread, posts, tags } = Route.useLoaderData();
 
   if (!thread) {
     return (
@@ -99,19 +103,17 @@ function ThreadDetailPage() {
           <span>{format(new Date(thread.createdAt), "MMM d, yyyy")}</span>
         </div>
 
-        {thread.threadTags && thread.threadTags.length > 0 && (
+        {tags && tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             <Tag className="h-4 w-4 mr-1" />
-            {thread.threadTags.map((threadTag) => (
+            {tags.map((tag) => (
               <Badge
-                key={threadTag.tagId}
+                key={tag.id}
                 variant="outline"
                 className="hover:bg-accent cursor-pointer"
-                onClick={() =>
-                  (window.location.href = `/tags/${threadTag.tag?.slug}`)
-                }
+                onClick={() => (window.location.href = `/tags/${tag.id}`)}
               >
-                {threadTag.tag?.name}
+                {tag.name}
               </Badge>
             ))}
           </div>

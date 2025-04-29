@@ -1,14 +1,17 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { threads, threadTags } from "@/lib/db/schema";
+import { threads, tags, tagsRelations, threadTags } from "@/lib/db/schema";
 import { and, eq, asc, desc } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db/db.server";
+import { db } from "@/lib/db";
 import {
   createSelectSchema,
   createInsertSchema,
   createUpdateSchema,
 } from "drizzle-zod";
+import type { Category } from "@/lib/db/schema/categories";
+import type { SessionUser } from "./users";
+import type { Tag } from "./tags";
 
 // Query Keys
 export const threadKeys = {
@@ -32,6 +35,11 @@ const threadUpdateSchema = createUpdateSchema(threads).extend({
 
 // Type definitions based on schemas
 export type Thread = z.infer<typeof threadSelectSchema>;
+export type ThreadWithRelations = Thread & {
+  category: Category;
+  author: SessionUser;
+  tags: Tag[];
+};
 export type ThreadCreateInput = Omit<
   z.infer<typeof threadInsertSchema>,
   "id" | "createdAt" | "updatedAt" | "viewCount"
@@ -46,20 +54,23 @@ export type CreateThreadInput = {
 
 // Server Functions for Threads
 export const fetchThreads = createServerFn({ method: "GET" }).handler(
-  async () => {
+  async (): Promise<ThreadWithRelations[]> => {
     console.info("Fetching all threads...");
-    return await db().query.threads.findMany({
+    const threads = await db.query.threads.findMany({
       with: {
         category: true,
         author: true,
-        threadTags: {
-          with: {
-            tag: true,
-          },
+        tags: {
+          with: { tag: true },
         },
       },
       orderBy: (threads, { desc }) => [desc(threads.createdAt)],
     });
+    const tags = threads.map((thread) => thread.tags.map((tag) => tag.tag));
+    return threads.map((thread) => ({
+      ...thread,
+      tags: tags.flat(),
+    }));
   }
 );
 
@@ -67,69 +78,64 @@ export const fetchThreadsByCategory = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data: categoryId }) => {
     console.info(`Fetching threads for category ${categoryId}...`);
-    return await db().query.threads.findMany({
+    const threads = await db.query.threads.findMany({
       where: (threads, { eq }) => eq(threads.categoryId, categoryId),
       with: {
         category: true,
         author: true,
-        threadTags: {
-          with: {
-            tag: true,
-          },
+        tags: {
+          with: { tag: true },
         },
       },
       orderBy: (threads, { desc }) => [desc(threads.createdAt)],
     });
+    const tags = threads.map((thread) => thread.tags.map((tag) => tag.tag));
+    return threads.map((thread) => ({
+      ...thread,
+      tags: tags.flat(),
+    }));
   });
 
 export const fetchThreadsByTag = createServerFn({ method: "GET" })
   .validator(z.string())
-  .handler(async ({ data: tagId }) => {
+  .handler(async ({ data: tagId }): Promise<ThreadWithRelations[]> => {
     console.info(`Fetching threads with tag ${tagId}...`);
-    const threadIds = await db().query.threadTags.findMany({
-      where: (threadTags, { eq }) => eq(threadTags.tagId, tagId),
-      columns: {
-        threadId: true,
-      },
-    });
 
-    if (threadIds.length === 0) {
-      return [];
-    }
-
-    return await db().query.threads.findMany({
-      where: (threads, { inArray }) =>
-        inArray(
-          threads.id,
-          threadIds.map((tt) => tt.threadId)
-        ),
+    const threads = await db.query.threadTags.findMany({
+      where: (tags, { eq }) => eq(tags.tagId, tagId),
       with: {
-        category: true,
-        author: true,
-        threadTags: {
+        thread: {
           with: {
-            tag: true,
+            category: true,
+            author: true,
+            tags: {
+              with: { tag: true },
+            },
           },
         },
       },
-      orderBy: (threads, { desc }) => [desc(threads.createdAt)],
     });
+
+    const tags = threads.map((thread) =>
+      thread.thread.tags.map((tag) => tag.tag)
+    );
+
+    return threads.map((thread) => ({
+      ...thread.thread,
+      tags: tags.flat(),
+    }));
   });
 
 export const fetchThreadById = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data: id }) => {
     console.info(`Fetching thread with id ${id}...`);
-    const thread = await db().query.threads.findFirst({
+    const thread = await db.query.threads.findFirst({
       where: (threads, { eq }) => eq(threads.id, id),
       with: {
         category: true,
         author: true,
-        threadTags: {
-          with: {
-            tag: true,
-          },
-        },
+        tags: true,
         posts: {
           with: {
             author: true,
@@ -150,16 +156,12 @@ export const fetchThreadBySlug = createServerFn({ method: "GET" })
   .validator(z.string())
   .handler(async ({ data: slug }) => {
     console.info(`Fetching thread with slug ${slug}...`);
-    const thread = await db().query.threads.findFirst({
+    const thread = await db.query.threads.findFirst({
       where: (threads, { eq }) => eq(threads.slug, slug),
       with: {
         category: true,
         author: true,
-        threadTags: {
-          with: {
-            tag: true,
-          },
-        },
+        tags: true,
         posts: {
           with: {
             author: true,
@@ -174,7 +176,7 @@ export const fetchThreadBySlug = createServerFn({ method: "GET" })
     }
 
     // Increment view count
-    await db()
+    await db
       .update(threads)
       .set({
         viewCount: (thread.viewCount || 0) + 1,
@@ -213,7 +215,7 @@ export const createThread = createServerFn({ method: "POST" })
         .replace(/[^\w\s-]/g, "")
         .replace(/\s+/g, "-");
 
-    const result = await db()
+    const result = await db
       .insert(threads)
       .values({
         id,
@@ -227,15 +229,12 @@ export const createThread = createServerFn({ method: "POST" })
 
     // If tag IDs are provided, create the thread-tag relationships
     if (tagIds && tagIds.length > 0) {
-      await db()
-        .insert(threadTags)
-        .values(
-          tagIds.map((tagId) => ({
-            threadId: id,
-            tagId,
-            createdAt: now,
-          }))
-        );
+      await db.insert(threadTags).values(
+        tagIds.map((tagId) => ({
+          threadId: id,
+          tagId,
+        }))
+      );
     }
 
     return result[0];
@@ -247,7 +246,7 @@ export const updateThread = createServerFn({ method: "POST" })
     console.info(`Updating thread with id ${id}...`);
 
     // Check if thread exists
-    const existingThread = await db().query.threads.findFirst({
+    const existingThread = await db.query.threads.findFirst({
       where: (threads, { eq }) => eq(threads.id, id),
     });
 
@@ -257,7 +256,7 @@ export const updateThread = createServerFn({ method: "POST" })
 
     // Update thread
     const updatedAt = new Date();
-    const result = await db()
+    const result = await db
       .update(threads)
       .set({
         ...data,
@@ -278,27 +277,35 @@ export const addThreadTag = createServerFn({ method: "POST" })
   )
   .handler(async ({ data: { threadId, tagId } }) => {
     console.info(`Adding tag ${tagId} to thread ${threadId}...`);
-    const now = new Date();
 
-    // Check if the relationship already exists
-    const existing = await db().query.threadTags.findFirst({
-      where: (threadTags, { eq, and }) =>
-        and(eq(threadTags.threadId, threadId), eq(threadTags.tagId, tagId)),
+    // First check if the tag exists
+    const existingTag = await db.query.tags.findFirst({
+      where: (tags, { eq }) => eq(tags.id, tagId),
     });
 
-    if (existing) {
-      return existing;
+    if (!existingTag) {
+      // Create the tag if it doesn't exist
+      const now = new Date();
+      await db.insert(tags).values({
+        id: tagId,
+        name: tagId,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
-    // Create the relationship
-    return await db()
+    // Then connect the tag to the thread
+    // This uses Drizzle's relations system
+    // The exact implementation depends on how your schema defines the relationship
+    const threadToTag = await db
       .insert(threadTags)
       .values({
         threadId,
         tagId,
-        createdAt: now,
       })
       .returning();
+
+    return threadToTag;
   });
 
 export const removeThreadTag = createServerFn({ method: "POST" })
@@ -310,7 +317,9 @@ export const removeThreadTag = createServerFn({ method: "POST" })
   )
   .handler(async ({ data: { threadId, tagId } }) => {
     console.info(`Removing tag ${tagId} from thread ${threadId}...`);
-    return await db()
+
+    // Remove the relationship between thread and tag
+    return await db
       .delete(threadTags)
       .where(
         and(eq(threadTags.threadId, threadId), eq(threadTags.tagId, tagId))

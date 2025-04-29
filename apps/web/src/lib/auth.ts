@@ -1,15 +1,15 @@
 "use server";
 import { betterAuth } from "better-auth";
+import { admin, openAPI, organization } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins";
-import { openAPI } from "better-auth/plugins";
-import { db } from "@/lib/db/db.server";
-// import { getCloudflareContext } from "../clouflare-helpers";
-import { env } from "@/env";
+import { db } from "@/lib/db";
+
+// Only used for code-gen
+// const _prisma = new PrismaClient();
 
 export const auth = betterAuth({
-  baseUrl: env.BETTER_AUTH_URL,
-  trustedOrigins: [env.BETTER_AUTH_URL || ""],
+  baseUrl: process.env.BETTER_AUTH_URL,
+  trustedOrigins: [process.env.BETTER_AUTH_URL || ""],
   database: drizzleAdapter(db, {
     provider: "sqlite",
   }),
@@ -38,16 +38,16 @@ export const auth = betterAuth({
   },
   socialProviders: {
     github: {
-      clientId: env.GITHUB_CLIENT_ID || "",
-      clientSecret: env.GITHUB_CLIENT_SECRET || "",
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
     },
     gitlab: {
-      clientId: env.GITLAB_CLIENT_ID || "",
-      clientSecret: env.GITLAB_CLIENT_SECRET || "",
+      clientId: process.env.GITLAB_CLIENT_ID || "",
+      clientSecret: process.env.GITLAB_CLIENT_SECRET || "",
     },
     google: {
-      clientId: env.GOOGLE_CLIENT_ID || "",
-      clientSecret: env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     },
   },
   user: {
@@ -55,6 +55,12 @@ export const auth = betterAuth({
       enabled: true,
     },
     additionalFields: {
+      handle: {
+        type: "string",
+        required: true,
+        input: true,
+        unique: true,
+      },
       bio: {
         type: "string",
         required: false,
@@ -62,7 +68,7 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [admin(), openAPI()],
+  plugins: [admin(), openAPI(), organization({})],
   rateLimit: {
     enabled: true,
     // storage: "secondary-storage",
@@ -70,5 +76,3 @@ export const auth = betterAuth({
     max: 10, // max requests in the window
   },
 });
-
-export default auth;

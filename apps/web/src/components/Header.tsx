@@ -6,7 +6,7 @@ import {
 } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { useSession } from "@/hooks/use-auth";
-import { authClient } from "@/lib/auth/client";
+import { authClient } from "@/lib/auth-client";
 import { HEADER_LINKS, SITE_NAME } from "@/lib/constants";
 
 export default function Header() {

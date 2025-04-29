@@ -1,9 +1,9 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { TagBadge } from '@/components/tags/TagBadge';
-import { fetchThreads } from '@/lib/queries';
+import { type ThreadWithRelations } from '@/lib/queries';
 
 // Define the props type using the return type of fetchThreads 
-type ThreadItemProps = Awaited<ReturnType<typeof fetchThreads>>[number] & {
+type ThreadItemProps = ThreadWithRelations & {
   replyCount?: number; // Additional prop not in the thread type
 };
 
@@ -19,7 +19,7 @@ export function ThreadItem(props: ThreadItemProps) {
     replyCount = 0,
     isPinned = false,
     isLocked = false,
-    threadTags = []
+    tags = []
   } = props;
   
   // Format dates
@@ -63,20 +63,19 @@ export function ThreadItem(props: ThreadItemProps) {
         </CardDescription>
       </CardHeader>
       
-      {threadTags && threadTags.length > 0 && (
+      {tags && tags.length > 0 && (
         <CardContent className="pb-2">
           <div className="flex flex-wrap gap-2">
-            {threadTags.map(threadTag => {
+            {tags.map(tag => {
               // Ensure tag has required string values
-              if (!threadTag.tag?.name || !threadTag.tag?.slug) return null;
+              if (!tag.name || !tag.id) return null;
               
               return (
                 <TagBadge
-                  key={threadTag.tagId}
-                  id={threadTag.tagId}
-                  name={threadTag.tag.name}
-                  slug={threadTag.tag.slug}
-                  color={threadTag.tag.color || undefined}
+                  key={tag.id}
+                  id={tag.id}
+                  name={tag.name}
+                  color={tag.color || undefined}
                   showCount={false}
                 />
               );

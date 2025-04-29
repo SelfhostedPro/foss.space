@@ -2,10 +2,10 @@ import { ThreadItem } from "./ThreadItem";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Link } from "@tanstack/react-router";
-import { fetchThreads } from "@/lib/queries";
+import { type Thread, type ThreadWithRelations } from "@/lib/queries";
 
 interface ThreadListProps {
-  threads?: Awaited<ReturnType<typeof fetchThreads>>;
+  threads?: ThreadWithRelations[];
   isLoading?: boolean;
   error?: Error | null;
   showCreateButton?: boolean;

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8b4f8588-0bdd-43c5-8e49-8d9281f80ee5",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "435408e2-30cf-4612-97c2-712a6ea4e3e6",
+  "prevId": "b97061a0-fb18-4474-8863-1e1e6f945f88",
   "tables": {
     "account": {
       "name": "account",
@@ -592,6 +592,38 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "post_tags": {
+      "name": "post_tags",
+      "columns": {
+        "postId": {
+          "name": "postId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tagId": {
+          "name": "tagId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "post_tags_postId_tagId_pk": {
+          "columns": [
+            "postId",
+            "tagId"
+          ],
+          "name": "post_tags_postId_tagId_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "post_versions": {
       "name": "post_versions",
       "columns": {
@@ -802,6 +834,38 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "thread_tags": {
+      "name": "thread_tags",
+      "columns": {
+        "threadId": {
+          "name": "threadId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tagId": {
+          "name": "tagId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "thread_tags_threadId_tagId_pk": {
+          "columns": [
+            "threadId",
+            "tagId"
+          ],
+          "name": "thread_tags_threadId_tagId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

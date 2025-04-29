@@ -1,0 +1,401 @@
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["driverAdapters"]
+}
+
+generator kysely {
+    provider = "prisma-kysely"
+
+    // Optionally provide a destination directory for the generated file
+    // and a filename of your choice
+    output       = "../src/lib/db/types"
+    fileName     = "types.ts"
+    // Optionally generate runtime enums to a separate file
+    enumFileName = "enums.ts"
+
+    // Fix Boolean Type
+    booleanTypeOverride	 = "boolean"
+}
+
+generator drizzle {
+    provider = "prisma-generator-drizzle"
+    // Specify the output file (or directory)
+    output = "../src/lib/drizzle/schema.ts"
+}
+
+datasource db {
+    provider = "sqlite"
+    url      = "file:./dev.db"
+}
+
+// enum ResourceType {
+//     POST
+//     THREAD
+//     CATEGORY
+//     TAG
+// }
+
+// enum FlagResourceType {
+//     POST
+//     THREAD
+//     CATEGORY
+//     TAG
+//     USER
+//     ORGANIZATION
+// }
+
+model User {
+    id            String       @id @default(dbgenerated("(uuid())"))
+    name          String
+    email         String
+    emailVerified Boolean
+    image         String?
+    createdAt     DateTime
+    updatedAt     DateTime
+    role          String?
+    banned        Boolean?
+    banReason     String?
+    banExpires    DateTime?
+    handle        String
+    bio           String?
+    sessions      Session[]
+    accounts      Account[]
+    members       Member[]
+    invitations   Invitation[]
+
+    // Thread relations
+    authoredThreads Thread[] @relation("ThreadAuthor")
+    deletedThreads  Thread[] @relation("ThreadDeleter")
+
+    // Post relations
+    authoredPosts Post[] @relation("PostAuthor")
+    deletedPosts  Post[] @relation("PostDeleter")
+
+    // Version relations
+    editedVersions PostVersion[] @relation("VersionEditor")
+
+    // Follow system
+    following UserFollow[] @relation("Follower")
+    followers UserFollow[] @relation("Followed")
+
+    createdCategories      Category[]
+    // Notification relations
+    notifications          Notification[] @relation("UserNotifications")
+    triggeredNotifications Notification[] @relation("NotificationActor")
+
+    // Settings and subscriptions
+    settings      UserSettings?
+    subscriptions Subscription[] @relation("UserSubscriptions")
+
+    // Interaction relations
+    likes     Like[]     @relation("UserLikes")
+    bookmarks Bookmark[] @relation("UserBookmarks")
+
+    // Moderation
+    flags         Flag[]
+    reviewedFlags Flag[] @relation("FlagReviewer")
+
+    @@unique([email])
+    @@unique([handle])
+    @@map("user")
+}
+
+model UserFollow {
+    id         String   @id @default(dbgenerated("(uuid())"))
+    followerId String
+    followedId String
+    createdAt  DateTime @default(now())
+
+    follower User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+    followed User @relation("Followed", fields: [followedId], references: [id], onDelete: Cascade)
+
+    @@map("user_follows")
+}
+
+// User models
+model UserSettings {
+    id     String @id @default(dbgenerated("(uuid())"))
+    userId String @unique
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("user_settings")
+}
+
+model Session {
+    id                   String   @id @default(dbgenerated("(uuid())"))
+    expiresAt            DateTime
+    token                String
+    createdAt            DateTime
+    updatedAt            DateTime
+    ipAddress            String?
+    userAgent            String?
+    userId               String
+    user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    impersonatedBy       String?
+    activeOrganizationId String?
+
+    @@unique([token])
+    @@map("session")
+}
+
+model Account {
+    id                    String    @id @default(dbgenerated("(uuid())"))
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime
+    updatedAt             DateTime
+
+    @@map("account")
+}
+
+model Verification {
+    id         String    @id @default(dbgenerated("(uuid())"))
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime?
+    updatedAt  DateTime?
+
+    @@map("verification")
+}
+
+model Organization {
+    id          String       @id @default(dbgenerated("(uuid())"))
+    name        String
+    slug        String?
+    logo        String?
+    createdAt   DateTime
+    metadata    String?
+    members     Member[]
+    invitations Invitation[]
+
+    @@unique([slug])
+    @@map("organization")
+}
+
+model Member {
+    id             String       @id @default(dbgenerated("(uuid())"))
+    organizationId String
+    organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    userId         String
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    role           String
+    createdAt      DateTime
+
+    @@map("member")
+}
+
+model Invitation {
+    id             String       @id @default(dbgenerated("(uuid())"))
+    organizationId String
+    organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    email          String
+    role           String?
+    status         String
+    expiresAt      DateTime
+    inviterId      String
+    user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+    @@map("invitation")
+}
+
+// Content models
+
+model Category {
+    id          String   @id @default(dbgenerated("(uuid())"))
+    name        String
+    description String?
+    slug        String   @unique
+    parentId    String?
+    order       Int      @default(0)
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    createdById String?
+    metadata    String?
+
+    // Relations
+    parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+    children  Category[] @relation("CategoryHierarchy")
+    threads   Thread[]
+    createdBy User?      @relation(fields: [createdById], references: [id])
+
+    @@map("categories")
+}
+
+model Tag {
+    id          String   @id @default(dbgenerated("(uuid())"))
+    name        String   @unique
+    description String?
+    color       String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    threads     Thread[]
+
+    @@map("tags")
+}
+
+model Thread {
+    id             String    @id @default(dbgenerated("(uuid())"))
+    title          String
+    slug           String    @unique
+    categoryId     String
+    authorId       String
+    isPinned       Boolean   @default(false)
+    isLocked       Boolean   @default(false)
+    viewCount      Int       @default(0)
+    lastActivityAt DateTime  @default(now())
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+    isDeleted      Boolean   @default(false)
+    deletedAt      DateTime?
+    deletedById    String?
+
+    // Relations
+    category  Category @relation(fields: [categoryId], references: [id])
+    author    User     @relation("ThreadAuthor", fields: [authorId], references: [id])
+    deletedBy User?    @relation("ThreadDeleter", fields: [deletedById], references: [id])
+
+    posts     Post[]
+    bookmarks Bookmark[]
+    userId    String?
+    Tag       Tag?       @relation(fields: [tagId], references: [id])
+    tagId     String?
+
+    @@map("threads")
+}
+
+model Post {
+    id           String    @id @default(dbgenerated("(uuid())"))
+    threadId     String
+    authorId     String
+    content      String
+    parentId     String?
+    createdAt    DateTime  @default(now())
+    updatedAt    DateTime  @updatedAt
+    isDeleted    Boolean   @default(false)
+    deletedAt    DateTime?
+    deletedById  String?
+    isHidden     Boolean   @default(false)
+    hiddenReason String?
+
+    thread    Thread @relation(fields: [threadId], references: [id])
+    author    User   @relation("PostAuthor", fields: [authorId], references: [id])
+    deletedBy User?  @relation("PostDeleter", fields: [deletedById], references: [id])
+
+    parent   Post?         @relation("ReplyHierarchy", fields: [parentId], references: [id])
+    replies  Post[]        @relation("ReplyHierarchy")
+    likes    Like[]
+    versions PostVersion[]
+
+    @@map("posts")
+}
+
+model PostVersion {
+    id          String   @id @default(dbgenerated("(uuid())"))
+    postId      String
+    content     String
+    contentHtml String?
+    editedAt    DateTime @default(now())
+    editedById  String
+    editReason  String?
+
+    post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+    editedBy User @relation("VersionEditor", fields: [editedById], references: [id])
+
+    @@map("post_versions")
+}
+
+// Interaction models
+model Like {
+    userId    String
+    postId    String
+    createdAt DateTime @default(now())
+
+    user User @relation("UserLikes", fields: [userId], references: [id], onDelete: Cascade)
+    post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+    @@id([userId, postId])
+    @@map("likes")
+}
+
+model Bookmark {
+    userId    String
+    threadId  String
+    createdAt DateTime @default(now())
+    notes     String?
+
+    user   User   @relation("UserBookmarks", fields: [userId], references: [id], onDelete: Cascade)
+    thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+    @@id([userId, threadId])
+    @@map("bookmarks")
+}
+
+// Notification models
+model Notification {
+    id           String       @id @default(dbgenerated("(uuid())"))
+    userId       String
+    type         String
+    title        String
+    message      String
+    resourceType String
+    resourceId   String
+    actorId      String?
+    isRead       Boolean      @default(false)
+    createdAt    DateTime     @default(now())
+    readAt       DateTime?
+    emailSent    Boolean      @default(false)
+    emailSentAt  DateTime?
+
+    user  User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+    actor User? @relation("NotificationActor", fields: [actorId], references: [id])
+
+    @@map("notifications")
+}
+
+// Subscription models
+model Subscription {
+    id           String       @id @default(dbgenerated("(uuid())"))
+    userId       String
+    resourceType String
+    resourceId   String
+    createdAt    DateTime     @default(now())
+    notifyEmail  Boolean      @default(true)
+    notifyInApp  Boolean      @default(true)
+
+    user User @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("subscriptions")
+}
+
+model Flag {
+    id String @id @default(dbgenerated("(uuid())"))
+
+    type         String
+    resourceType String
+    resourceId   String
+
+    user   User   @relation(fields: [userId], references: [id])
+    userId String
+
+    reason        String
+    reasonDetails String?
+
+    createdAt    DateTime  @default(now())
+    reviewedAt   DateTime?
+    reviewedById String?
+    reviewedBy   User?     @relation("FlagReviewer", fields: [reviewedById], references: [id])
+
+    @@map("flags")
+}
